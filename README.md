@@ -1,5 +1,7 @@
 # Monzo API for Rust
 
+[![Build Status](https://travis-ci.org/nielsegberts/rust-monzo.svg?branch=master)](https://travis-ci.org/nielsegberts/rust-monzo)
+
 This is a library that wraps over the Monzo API in a future aware manner.
 
 ## Example usage
