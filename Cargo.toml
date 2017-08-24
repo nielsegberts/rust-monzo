@@ -1,0 +1,22 @@
+[package]
+authors = ["Niels Egberts <github@nielsegberts.nl>"]
+description = "A library that wraps over the Monzo API in a future aware manner."
+license = "MIT"
+name = "monzo"
+readme = "README.md"
+version = "0.0.1"
+
+[dependencies]
+error-chain = "0.10.0"
+futures = "0.1.15"
+hyper = "0.11.2"
+hyper-tls = "0.1.2"
+serde = "1.0.11"
+serde_derive = "1.0.11"
+serde_json = "1.0.2"
+tokio-core = "0.1.9"
+url = "1.5.1"
+
+[dev-dependencies]
+mockito = "0.8.2"
+spectral = "0.6.0"
