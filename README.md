@@ -12,7 +12,7 @@ extern crate tokio_core;
 
 let mut core = tokio_core::reactor::Core::new().unwrap();
 let monzo = monzo::Client::new(&core.handle(), "<access_token>");
-let work = monzo.balance("<account_id>");
+let work = monzo.balance("<account_id>".into());
 let response = core.run(work).unwrap();
 println!("Balance: {} {}", response.balance, response.currency);
 println!("Spent today: {}", response.spend_today);

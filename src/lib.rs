@@ -10,7 +10,7 @@
 //!
 //! let mut core = tokio_core::reactor::Core::new().unwrap();
 //! let monzo = monzo::Client::new(&core.handle(), "<access_token>");
-//! let work = monzo.balance("<account_id>");
+//! let work = monzo.balance("<account_id>".into());
 //! let response = core.run(work).unwrap();
 //! println!("Balance: {} {}", response.balance, response.currency);
 //! println!("Spent today: {}", response.spend_today);
@@ -45,12 +45,14 @@ use std::string::String;
 use tokio_core::reactor::Handle;
 use url::Url;
 
+/// Identifier for the account.
+pub type AccountId = String;
+
 /// Accounts represent a store of funds, and have a list of transactions.
 #[derive(Debug, Deserialize)]
 pub struct Account {
     /// The account id.
-    // TODO: Create account type?
-    pub id: String,
+    pub id: AccountId,
     /// Description of the account.
     pub description: String,
     /// Date the account was created.
@@ -191,13 +193,13 @@ impl Client {
     }
 
     /// Retrieve information about an account’s balance.
-    pub fn balance(&self, account_id: &str) -> Box<Future<Item = Balance, Error = errors::Error>> {
+    pub fn balance(
+        &self,
+        account_id: AccountId,
+    ) -> Box<Future<Item = Balance, Error = errors::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("balance");
-        url.query_pairs_mut().append_pair(
-            "account_id",
-            account_id.into(),
-        );
+        url.query_pairs_mut().append_pair("account_id", &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
