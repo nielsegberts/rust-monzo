@@ -9,8 +9,8 @@
 //! extern crate tokio_core;
 //!
 //! let mut core = tokio_core::reactor::Core::new().unwrap();
-//! let monzo = monzo::Client::new(&core.handle());
-//! let work = monzo.balance("<account_id>".to_string(), "<access_token>".to_string());
+//! let monzo = monzo::Client::new(&core.handle(), "<access_token>");
+//! let work = monzo.balance("<account_id>");
 //! let response = core.run(work).unwrap();
 //! println!("Balance: {} {}", response.balance, response.currency);
 //! println!("Spent today: {}", response.spend_today);
@@ -39,11 +39,31 @@ extern crate tokio_core;
 extern crate url;
 
 use futures::{Future, Stream};
-use hyper::{Method, Request, Uri, Chunk, StatusCode};
+use hyper::{Body, Method, Request, Uri, Chunk, StatusCode};
 use hyper::header::{Authorization, Bearer};
 use std::string::String;
 use tokio_core::reactor::Handle;
 use url::Url;
+
+/// Accounts represent a store of funds, and have a list of transactions.
+#[derive(Debug, Deserialize)]
+pub struct Account {
+    /// The account id.
+    // TODO: Create account type?
+    pub id: String,
+    /// Description of the account.
+    pub description: String,
+    /// Date the account was created.
+    // TODO: Change to date type?
+    pub created: String,
+}
+
+/// Response to the list accounts future.
+#[derive(Debug, Deserialize)]
+pub struct Accounts {
+    /// List of accounts owned by the currenty authorized user.
+    pub accounts: Vec<Account>,
+}
 
 /// Response to the balance future if successful.
 #[derive(Debug, Deserialize)]
@@ -92,46 +112,51 @@ pub mod errors {
 #[derive(Debug)]
 pub struct Client {
     client: hyper::client::Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>,
+    access_token: String,
     base_url: Url,
 }
 
 /// The main interface for this crate.
 impl Client {
     /// Creates a new Monzo client.
-    pub fn new(handle: &Handle) -> Client {
-        Client::new_with_base_url(handle, "https://api.monzo.com".parse().unwrap())
+    pub fn new(handle: &Handle, access_token: &str) -> Client {
+        Client::new_with_base_url(
+            handle,
+            access_token,
+            "https://api.monzo.com".parse().unwrap(),
+        )
     }
 
     /// Creates a new Monzo client with another base url. Useful for tests.
-    pub fn new_with_base_url(handle: &Handle, base_url: Url) -> Client {
+    pub fn new_with_base_url(handle: &Handle, access_token: &str, base_url: Url) -> Client {
         Client {
             client: ::hyper::Client::configure()
                 .connector(::hyper_tls::HttpsConnector::new(4, handle).unwrap())
                 .build(handle),
+            access_token: access_token.into(),
             base_url: base_url,
         }
     }
 
-    /// Retrieve information about an account’s balance.
-    pub fn balance(
-        &self,
-        account_id: String,
-        access_token: String,
-    ) -> Box<Future<Item = Balance, Error = errors::Error>> {
-        println!("Preparing balance");
-
-        let mut url = self.base_url.clone();
-        url.path_segments_mut().unwrap().push("balance");
-        url.query_pairs_mut().append_pair("account_id", &account_id);
-
-        let uri: Uri = url.into_string().parse().unwrap();
-        let mut req = Request::new(Method::Get, uri);
+    fn create_request(&self, uri: Uri) -> Request<Body> {
+        let mut req: Request<Body> = Request::new(Method::Get, uri);
         req.headers_mut().set(Authorization(
-            Bearer { token: access_token },
+            Bearer { token: self.access_token.clone() },
         ));
-        let work_old: hyper::client::FutureResponse = self.client.request(req);
+        req
+    }
 
-        let balance_future = work_old
+    fn make_request<T: 'static, F: 'static>(
+        &self,
+        uri: Uri,
+        response_handler: F,
+    ) -> Box<Future<Item = T, Error = errors::Error>>
+    where
+        F: Fn(Chunk) -> Result<T, errors::Error>,
+    {
+        let request = self.create_request(uri);
+        let response: hyper::client::FutureResponse = self.client.request(request);
+        let future = response
             .map_err(|err: hyper::Error| -> errors::Error { err.into() })
             .and_then(|res| {
                 let status = res.status().clone();
@@ -146,12 +171,38 @@ impl Client {
                                 return Err(errors::ErrorKind::BadResponse(status, error).into());
                             }
                         };
-
-                        let b: Balance = serde_json::from_slice(&body)?;
-                        Ok(b)
+                        response_handler(body)
                     })
             });
 
-        Box::new(balance_future)
+        Box::new(future)
+    }
+
+    /// Returns a list of accounts owned by the currently authorised user.
+    pub fn accounts(&self) -> Box<Future<Item = Accounts, Error = errors::Error>> {
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("accounts");
+        let uri: Uri = url.into_string().parse().unwrap();
+
+        self.make_request(uri, |body| {
+            let a: Accounts = serde_json::from_slice(&body)?;
+            Ok(a)
+        })
+    }
+
+    /// Retrieve information about an account’s balance.
+    pub fn balance(&self, account_id: &str) -> Box<Future<Item = Balance, Error = errors::Error>> {
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("balance");
+        url.query_pairs_mut().append_pair(
+            "account_id",
+            account_id.into(),
+        );
+        let uri: Uri = url.into_string().parse().unwrap();
+
+        self.make_request(uri, |body| {
+            let b: Balance = serde_json::from_slice(&body)?;
+            Ok(b)
+        })
     }
 }
