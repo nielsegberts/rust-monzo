@@ -155,17 +155,18 @@ pub struct Error {
 
 const ACCOUNT_ID: &'static str = "account_id";
 
-/// Errors for this crate using error_chain.
+/// Errors for this crate using `error_chain`.
 pub mod errors {
-    #![allow(missing_docs)]
     error_chain! {
         errors {
-            /// When the Monzo API returns an error response code with more detailed information.
+            #[doc = "When the Monzo API returns an error response code with more detailed \
+            information."]
             BadResponse(statuscode: ::hyper::StatusCode, error: ::Error)
         }
         foreign_links {
-            BadJsonResponse(::serde_json::Error);
-            NetworkError(::hyper::Error);
+            BadJsonResponse(::serde_json::Error)
+            #[doc = "When the Monzo API returns invalid or unexpected json content."];
+            NetworkError(::hyper::Error) #[doc = "Returned on network failure."];
         }
     }
 }
@@ -221,7 +222,7 @@ impl Client {
         let future = response
             .map_err(|err: hyper::Error| -> errors::Error { err.into() })
             .and_then(|res| {
-                let status = res.status().clone();
+                let status = res.status();
                 res.body()
                     .concat2()
                     .map_err(|err: hyper::Error| err.into())
