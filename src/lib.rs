@@ -41,12 +41,19 @@ extern crate url;
 use futures::{Future, Stream};
 use hyper::{Body, Method, Request, Uri, Chunk, StatusCode};
 use hyper::header::{Authorization, Bearer};
+use std::collections::HashMap;
 use std::string::String;
 use tokio_core::reactor::Handle;
 use url::Url;
 
-/// Identifier for the account.
+/// Identifier for an account.
 pub type AccountId = String;
+/// Identifier for a transaction.
+pub type TransactionId = String;
+/// Identifier of a merchant.
+pub type MerchantId = String;
+/// Holds an ISO 4217 currency code.
+pub type Currency = String;
 
 /// Accounts represent a store of funds, and have a list of transactions.
 #[derive(Debug, Deserialize)]
@@ -55,7 +62,7 @@ pub struct Account {
     pub id: AccountId,
     /// Description of the account.
     pub description: String,
-    /// Date the account was created.
+    /// The timestamp in UTC when the account was created.
     // TODO: Change to date type?
     pub created: String,
 }
@@ -74,10 +81,61 @@ pub struct Balance {
     /// currency, eg. pennies for GBP, or cents for EUR and USD.
     pub balance: i64,
     /// The ISO 4217 currency code.
-    pub currency: String,
+    pub currency: Currency,
     /// The amount spent from this account today (considered from approx 4am onwards), in minor
     /// units of the currency.
     pub spend_today: i64,
+}
+
+/// Describes a transaction.
+#[derive(Debug, Deserialize)]
+pub struct Transaction {
+    /// Balance in the account after the transaction.
+    pub account_balance: i64,
+    /// The amount of the transaction in minor units of currency. For example pennies in the case
+    /// of GBP. A negative amount indicates a debit (most card transactions will have a negative
+    /// amount).
+    pub amount: i64,
+    /// The timestamp in UTC when the transaction was created.
+    // TODO: Change to date type?
+    pub created: String,
+    /// The ISO 4217 currency code.
+    pub currency: Currency,
+    /// Description of the transaction.
+    pub description: String,
+    /// The transaction id.
+    pub id: TransactionId,
+    /// This contains the merchant_id of the merchant that this transaction was made at.
+    pub merchant: Option<MerchantId>,
+    /// Key-value annotations made for transaction. Metadata is private to your application.
+    pub metadata: HashMap<String, String>,
+    /// Notes attached to the transaction.
+    pub notes: String,
+    /// Top-ups to an account are represented as transactions with a positive amount and
+    /// is_load = true. Other transactions such as refunds, reversals or chargebacks may have a
+    /// positive amount but is_load = false
+    pub is_load: bool,
+    /// The timestamp in UTC at which the transaction settled. In most cases, this happens 24-48
+    /// hours after created. If this field is not present, the transaction is authorised but not
+    /// yet “complete”.
+    pub settled: String,
+    /// The category can be set for each transaction by the user. Over time we learn which merchant
+    /// goes in which category and auto-assign the category of a transaction. If the user hasn’t
+    /// set a category, we’ll return the default category of the merchant on this transactions.
+    /// Top-ups have category mondo. Valid values are general, eating_out, expenses, transport,
+    /// cash, bills, entertainment, shopping, holidays, groceries.
+    pub category: String,
+    /// This is only present on declined transactions! Valid values are INSUFFICIENT_FUNDS,
+    /// CARD_INACTIVE, CARD_BLOCKED or OTHER.
+    // TODO: Make this an enum?
+    pub decline_reason: Option<String>,
+}
+
+/// Response to the transaction future if successful.
+#[derive(Debug, Deserialize)]
+pub struct Transactions {
+    /// List of transactions.
+    pub transactions: Vec<Transaction>,
 }
 
 /// Response to the futures in case of an error.
@@ -86,14 +144,16 @@ pub struct Error {
     /// The HTTP response code.
     pub code: Option<String>,
     /// Short description of the error.
-    // Maybe make this an enum since the documentation says it can only contain a certain set of
-    // values
+    // TODO; Maybe make this an enum since the documentation says it can only contain a certain set
+    // of values.
     pub error: Option<String>,
     /// Longer description of the error.
     pub error_description: Option<String>,
     /// Additional information.
     pub message: Option<String>,
 }
+
+const ACCOUNT_ID: &'static str = "account_id";
 
 /// Errors for this crate using error_chain.
 pub mod errors {
@@ -199,12 +259,28 @@ impl Client {
     ) -> Box<Future<Item = Balance, Error = errors::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("balance");
-        url.query_pairs_mut().append_pair("account_id", &account_id);
+        url.query_pairs_mut().append_pair(ACCOUNT_ID, &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
             let b: Balance = serde_json::from_slice(&body)?;
             Ok(b)
+        })
+    }
+
+    /// Returns a list of transactions on the user’s account.
+    pub fn transactions(
+        &self,
+        account_id: AccountId,
+    ) -> Box<Future<Item = Transactions, Error = errors::Error>> {
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("transactions");
+        url.query_pairs_mut().append_pair(ACCOUNT_ID, &account_id);
+        let uri: Uri = url.into_string().parse().unwrap();
+
+        self.make_request(uri, |body| {
+            let t: Transactions = serde_json::from_slice(&body)?;
+            Ok(t)
         })
     }
 }

@@ -22,6 +22,7 @@ println!("Spent today: {}", response.spend_today);
 
 * accounts
 * balance
+* transactions (just listing)
 
 Send me a pull request if you want to help out!
 

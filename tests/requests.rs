@@ -6,7 +6,7 @@ extern crate spectral;
 extern crate hyper;
 
 use mockito::mock;
-use monzo::{Accounts, Client, Balance};
+use monzo::{Accounts, Client, Balance, Transactions};
 use spectral::prelude::*;
 use tokio_core::reactor::Core;
 use url::Url;
@@ -68,6 +68,102 @@ fn balance() {
     assert_that(&b.balance).is_equal_to(5000);
     assert_that(&b.currency).is_equal_to(String::from("GBP"));
     assert_that(&b.spend_today).is_equal_to(100);
+}
+
+#[test]
+fn transactions() {
+    let _m = mock(
+        "GET",
+        mockito::Matcher::Regex(r"^/transactions\?.*$".to_string()),
+    ).with_status(200)
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            "{
+                \"transactions\": [
+                    {
+                        \"account_balance\": 13013,
+                        \"amount\": -510,
+                        \"created\": \"2015-08-22T12:20:18Z\",
+                        \"currency\": \"GBP\",
+                        \"description\": \"THE DE BEAUVOIR DELI C LONDON GBR\",
+                        \"merchant\": \"merch_00008zIcpbAKe8shBxXUtl\",
+                        \"id\": \"tx_00008zIcpb1TB4yeIFXMzx\",
+                        \"metadata\": {
+                            \"seen\": \"2015-09-15T10:19:17Z\"
+                        },
+                        \"notes\": \"Salmon sandwich 🍞\",
+                        \"is_load\": false,
+                        \"settled\": \"2015-08-23T12:20:18Z\",
+                        \"category\": \"eating_out\"
+                    }
+                ]
+            }",
+        )
+        .create();
+    let mut core = Core::new().unwrap();
+    let monzo = create_monzo(&core);
+    let work = monzo.transactions("some_id".into());
+    let ts: Transactions = core.run(work).unwrap();
+    assert_that(&ts.transactions.len()).is_equal_to(1);
+    let t = &ts.transactions[0];
+    assert_that(&t.account_balance).is_equal_to(13013);
+    assert_that(&t.amount).is_equal_to(-510);
+    assert_that(&t.created).is_equal_to(String::from("2015-08-22T12:20:18Z"));
+    assert_that(&t.currency).is_equal_to(String::from("GBP"));
+    assert_that(&t.description).is_equal_to(String::from("THE DE BEAUVOIR DELI C LONDON GBR"));
+    assert_that(&t.merchant).is_some().is_equal_to(
+        String::from(
+            "merch_00008zIcpbAKe8shBxXUtl",
+        ),
+    );
+    assert_that(&t.id).is_equal_to(String::from("tx_00008zIcpb1TB4yeIFXMzx"));
+    assert_that(&t.metadata.len()).is_equal_to(1);
+    assert_that(&t.notes).is_equal_to(String::from("Salmon sandwich 🍞"));
+    assert_that(&t.is_load).is_equal_to(false);
+    assert_that(&t.settled).is_equal_to(String::from("2015-08-23T12:20:18Z"));
+    assert_that(&t.category).is_equal_to(String::from("eating_out"));
+    assert_that(&t.decline_reason).is_none();
+}
+
+#[test]
+fn transactions_declined() {
+    let _m = mock(
+        "GET",
+        mockito::Matcher::Regex(r"^/transactions\?.*$".to_string()),
+    ).with_status(200)
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            "{
+                \"transactions\": [
+                    {
+                        \"account_balance\": 13013,
+                        \"amount\": -510,
+                        \"created\": \"2015-08-22T12:20:18Z\",
+                        \"currency\": \"GBP\",
+                        \"description\": \"THE DE BEAUVOIR DELI C LONDON GBR\",
+                        \"merchant\": null,
+                        \"id\": \"tx_00008zIcpb1TB4yeIFXMzx\",
+                        \"metadata\": {},
+                        \"notes\": \"Salmon sandwich 🍞\",
+                        \"is_load\": false,
+                        \"settled\": \"2015-08-23T12:20:18Z\",
+                        \"category\": \"eating_out\",
+                        \"decline_reason\": \"CARD_INACTIVE\"
+                    }
+                ]
+            }",
+        )
+        .create();
+    let mut core = Core::new().unwrap();
+    let monzo = create_monzo(&core);
+    let work = monzo.transactions("some_id".into());
+    let t = &core.run(work).unwrap().transactions[0];
+    assert_that(&t.decline_reason).is_some().is_equal_to(
+        String::from(
+            "CARD_INACTIVE",
+        ),
+    );
+    assert_that(&t.merchant).is_none();
 }
 
 #[test]
