@@ -41,9 +41,10 @@ fn accounts() {
     let work = monzo.accounts();
     let a: Accounts = core.run(work).unwrap();
     assert_that(&a.accounts.len()).is_equal_to(1);
-    assert_that(&a.accounts[0].id).is_equal_to(String::from("acc_00009237aqC8c5umZmrRdh"));
-    assert_that(&a.accounts[0].description).is_equal_to(String::from("Peter Pan's Account"));
-    assert_that(&a.accounts[0].created).is_equal_to(String::from("2015-11-13T12:17:42Z"));
+    assert_that(&a.accounts[0].id.as_str()).is_equal_to("acc_00009237aqC8c5umZmrRdh");
+    assert_that(&a.accounts[0].description.as_str()).is_equal_to("Peter Pan's Account");
+    assert_that(&a.accounts[0].created.to_rfc3339())
+        .is_equal_to("2015-11-13T12:17:42+00:00".to_string());
 }
 
 #[test]
@@ -66,7 +67,7 @@ fn balance() {
     let work = monzo.balance("some_id".into());
     let b: Balance = core.run(work).unwrap();
     assert_that(&b.balance).is_equal_to(5000);
-    assert_that(&b.currency).is_equal_to(String::from("GBP"));
+    assert_that(&b.currency.as_str()).is_equal_to("GBP");
     assert_that(&b.spend_today).is_equal_to(100);
 }
 
@@ -108,20 +109,19 @@ fn transactions() {
     let t = &ts.transactions[0];
     assert_that(&t.account_balance).is_equal_to(13013);
     assert_that(&t.amount).is_equal_to(-510);
-    assert_that(&t.created).is_equal_to(String::from("2015-08-22T12:20:18Z"));
-    assert_that(&t.currency).is_equal_to(String::from("GBP"));
-    assert_that(&t.description).is_equal_to(String::from("THE DE BEAUVOIR DELI C LONDON GBR"));
+    assert_that(&t.created.to_rfc3339().as_str()).is_equal_to("2015-08-22T12:20:18+00:00");
+    assert_that(&t.currency.as_str()).is_equal_to("GBP");
+    assert_that(&t.description.as_str()).is_equal_to("THE DE BEAUVOIR DELI C LONDON GBR");
     assert_that(&t.merchant).is_some().is_equal_to(
-        String::from(
-            "merch_00008zIcpbAKe8shBxXUtl",
-        ),
+        "merch_00008zIcpbAKe8shBxXUtl"
+            .to_string(),
     );
-    assert_that(&t.id).is_equal_to(String::from("tx_00008zIcpb1TB4yeIFXMzx"));
+    assert_that(&t.id.as_str()).is_equal_to("tx_00008zIcpb1TB4yeIFXMzx");
     assert_that(&t.metadata.len()).is_equal_to(1);
-    assert_that(&t.notes).is_equal_to(String::from("Salmon sandwich 🍞"));
+    assert_that(&t.notes.as_str()).is_equal_to("Salmon sandwich 🍞");
     assert_that(&t.is_load).is_equal_to(false);
-    assert_that(&t.settled).is_equal_to(String::from("2015-08-23T12:20:18Z"));
-    assert_that(&t.category).is_equal_to(String::from("eating_out"));
+    assert_that(&t.settled.as_str()).is_equal_to("2015-08-23T12:20:18Z");
+    assert_that(&t.category.as_str()).is_equal_to("eating_out");
     assert_that(&t.decline_reason).is_none();
 }
 
@@ -159,9 +159,8 @@ fn transactions_declined() {
     let work = monzo.transactions("some_id".into());
     let t = &core.run(work).unwrap().transactions[0];
     assert_that(&t.decline_reason).is_some().is_equal_to(
-        String::from(
-            "CARD_INACTIVE",
-        ),
+        "CARD_INACTIVE"
+            .to_string(),
     );
     assert_that(&t.merchant).is_none();
 }
@@ -195,15 +194,14 @@ fn unauthorized() {
                     .to_string(),
             );
             assert_that(&e.error).is_some().is_equal_to(
-                String::from("invalid_token"),
+                "invalid_token".to_string(),
             );
             assert_that(&e.error_description).is_some().is_equal_to(
-                String::from(
-                    "expired1",
-                ),
+                "expired1"
+                    .to_string(),
             );
             assert_that(&e.message).is_some().is_equal_to(
-                String::from("expired2"),
+                "expired2".to_string(),
             );
         }
         _ => panic!("Incorrect error type"),

@@ -29,6 +29,7 @@
 
 #[macro_use]
 extern crate error_chain;
+extern crate chrono;
 extern crate futures;
 extern crate hyper;
 extern crate hyper_tls;
@@ -38,6 +39,8 @@ extern crate serde_json;
 extern crate tokio_core;
 extern crate url;
 
+use chrono::DateTime;
+use chrono::offset::Utc;
 use futures::{Future, Stream};
 use hyper::{Body, Method, Request, Uri, Chunk, StatusCode};
 use hyper::header::{Authorization, Bearer};
@@ -62,9 +65,8 @@ pub struct Account {
     pub id: AccountId,
     /// Description of the account.
     pub description: String,
-    /// The timestamp in UTC when the account was created.
-    // TODO: Change to date type?
-    pub created: String,
+    /// The timestamp when the account was created.
+    pub created: DateTime<Utc>,
 }
 
 /// Response to the list accounts future.
@@ -96,9 +98,8 @@ pub struct Transaction {
     /// of GBP. A negative amount indicates a debit (most card transactions will have a negative
     /// amount).
     pub amount: i64,
-    /// The timestamp in UTC when the transaction was created.
-    // TODO: Change to date type?
-    pub created: String,
+    /// The timestamp in when the transaction was created.
+    pub created: DateTime<Utc>,
     /// The ISO 4217 currency code.
     pub currency: Currency,
     /// Description of the transaction.
@@ -115,9 +116,14 @@ pub struct Transaction {
     /// is_load = true. Other transactions such as refunds, reversals or chargebacks may have a
     /// positive amount but is_load = false
     pub is_load: bool,
-    /// The timestamp in UTC at which the transaction settled. In most cases, this happens 24-48
-    /// hours after created. If this field is not present, the transaction is authorised but not
-    /// yet “complete”.
+    /// The timestamp in UTC (RFC 3339) at which the transaction settled. In most cases, this
+    /// happens 24-48 hours after created. If this field is not present, the transaction is
+    /// authorised but not yet “complete”.
+    ///
+    /// Bug: Even though the Monzo documentation says the field is not present when not authorised,
+    /// in practice they send an empty string.
+    // TODO: Change this to a DateTime. Because this value can also be empty string it's a bit
+    // harder than the other date fields.
     pub settled: String,
     /// The category can be set for each transaction by the user. Over time we learn which merchant
     /// goes in which category and auto-assign the category of a transaction. If the user hasn’t

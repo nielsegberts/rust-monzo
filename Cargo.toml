@@ -11,6 +11,7 @@ version = "0.0.1"
 
 [dependencies]
 error-chain = "0.10.0"
+chrono = { version = "0.4.0", features = ["serde"] }
 futures = "0.1.15"
 hyper = "0.11.2"
 hyper-tls = "0.1.2"
