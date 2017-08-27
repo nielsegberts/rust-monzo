@@ -120,13 +120,15 @@ fn transactions() {
     assert_that(&t.metadata.len()).is_equal_to(1);
     assert_that(&t.notes.as_str()).is_equal_to("Salmon sandwich 🍞");
     assert_that(&t.is_load).is_equal_to(false);
-    assert_that(&t.settled.as_str()).is_equal_to("2015-08-23T12:20:18Z");
+    assert_that(&t.settled.unwrap().to_rfc3339()).is_equal_to(
+        "2015-08-23T12:20:18+00:00".to_string(),
+    );
     assert_that(&t.category.as_str()).is_equal_to("eating_out");
     assert_that(&t.decline_reason).is_none();
 }
 
 #[test]
-fn transactions_declined() {
+fn transactions_declined_no_merchant_no_settled() {
     let _m = mock(
         "GET",
         mockito::Matcher::Regex(r"^/transactions\?.*$".to_string()),
@@ -146,7 +148,7 @@ fn transactions_declined() {
                         \"metadata\": {},
                         \"notes\": \"Salmon sandwich 🍞\",
                         \"is_load\": false,
-                        \"settled\": \"2015-08-23T12:20:18Z\",
+                        \"settled\": \"\",
                         \"category\": \"eating_out\",
                         \"decline_reason\": \"CARD_INACTIVE\"
                     }
@@ -163,6 +165,7 @@ fn transactions_declined() {
             .to_string(),
     );
     assert_that(&t.merchant).is_none();
+    assert_that(&t.settled).is_none();
 }
 
 #[test]

@@ -32,6 +32,7 @@ extern crate error_chain;
 extern crate chrono;
 extern crate futures;
 extern crate hyper;
+extern crate serde;
 extern crate hyper_tls;
 #[macro_use]
 extern crate serde_derive;
@@ -44,7 +45,12 @@ use chrono::offset::Utc;
 use futures::{Future, Stream};
 use hyper::{Body, Method, Request, Uri, Chunk, StatusCode};
 use hyper::header::{Authorization, Bearer};
+use serde::de;
+use serde::de::Deserialize;
+use serde::de::Deserializer;
+use serde::de::Visitor;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::string::String;
 use tokio_core::reactor::Handle;
 use url::Url;
@@ -89,6 +95,54 @@ pub struct Balance {
     pub spend_today: i64,
 }
 
+/// Deserializes a string but returns None on empty string.
+fn none_for_empty_string<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    T: Deserialize<'de> + FromStr,
+    D: Deserializer<'de>,
+{
+    // This is a Visitor that forwards string types to T's `FromStr` impl if the string is
+    // non-empty The `PhantomData` is to keep the compiler from complaining about T being an unused
+    // generic type parameter. We need T in order to know the Value type for the Visitor impl.
+    struct NonEmptyString<T>(std::marker::PhantomData<Option<T>>);
+
+    impl<'de, T> Visitor<'de> for NonEmptyString<T>
+    where
+        T: Deserialize<'de> + FromStr,
+    {
+        type Value = Option<T>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("string")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Option<T>, E>
+        where
+            E: de::Error,
+        {
+            if value.is_empty() {
+                return Ok(None);
+            } else {
+                let res = FromStr::from_str(value);
+                match res {
+                    Ok(good) => Ok(Some(good)),
+                    // TODO: Find a way to propagate the error.
+                    Err(_) => Err(de::Error::custom("could not parse string")),
+                }
+            }
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Option<T>, E>
+        where
+            E: de::Error,
+        {
+            self.visit_str(&value)
+        }
+    }
+
+    deserializer.deserialize_any(NonEmptyString(std::marker::PhantomData))
+}
+
 /// Describes a transaction.
 #[derive(Debug, Deserialize)]
 pub struct Transaction {
@@ -122,9 +176,8 @@ pub struct Transaction {
     ///
     /// Bug: Even though the Monzo documentation says the field is not present when not authorised,
     /// in practice they send an empty string.
-    // TODO: Change this to a DateTime. Because this value can also be empty string it's a bit
-    // harder than the other date fields.
-    pub settled: String,
+    #[serde(deserialize_with = "none_for_empty_string")]
+    pub settled: Option<DateTime<Utc>>,
     /// The category can be set for each transaction by the user. Over time we learn which merchant
     /// goes in which category and auto-assign the category of a transaction. If the user hasn’t
     /// set a category, we’ll return the default category of the merchant on this transactions.
