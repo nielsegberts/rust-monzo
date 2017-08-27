@@ -175,7 +175,7 @@ pub struct Transaction {
     /// authorised but not yet “complete”.
     ///
     /// Bug: Even though the Monzo documentation says the field is not present when not authorised,
-    /// in practice they send an empty string.
+    /// in practice they send an empty string. See https://github.com/monzo/docs/pull/59.
     #[serde(deserialize_with = "none_for_empty_string")]
     pub settled: Option<DateTime<Utc>>,
     /// The category can be set for each transaction by the user. Over time we learn which merchant
