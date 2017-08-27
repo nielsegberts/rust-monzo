@@ -6,7 +6,7 @@ extern crate spectral;
 extern crate hyper;
 
 use mockito::mock;
-use monzo::{Accounts, Client, Balance, Transactions};
+use monzo::{Accounts, Client, Balance, Transactions, TransactionResponse};
 use spectral::prelude::*;
 use tokio_core::reactor::Core;
 use url::Url;
@@ -51,7 +51,7 @@ fn accounts() {
 fn balance() {
     let _m = mock(
         "GET",
-        mockito::Matcher::Regex(r"^/balance\?.*$".to_string()),
+        mockito::Matcher::Regex(r"^/balance\?account_id=some_id$".to_string()),
     ).with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(
@@ -75,7 +75,7 @@ fn balance() {
 fn transactions() {
     let _m = mock(
         "GET",
-        mockito::Matcher::Regex(r"^/transactions\?.*$".to_string()),
+        mockito::Matcher::Regex(r"^/transactions\?account_id=some_id$".to_string()),
     ).with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(
@@ -131,7 +131,7 @@ fn transactions() {
 fn transactions_declined_no_merchant_no_settled() {
     let _m = mock(
         "GET",
-        mockito::Matcher::Regex(r"^/transactions\?.*$".to_string()),
+        mockito::Matcher::Regex(r"^/transactions\?account_id=some_id$".to_string()),
     ).with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(
@@ -169,10 +169,47 @@ fn transactions_declined_no_merchant_no_settled() {
 }
 
 #[test]
+fn transaction() {
+    let _m = mock(
+        "GET",
+        mockito::Matcher::Regex(r"^/transactions/some_t_id\?account_id=some_id$".to_string()),
+    ).with_status(200)
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            "{
+                \"transaction\": {
+                    \"account_balance\": 13013,
+                    \"amount\": -510,
+                    \"created\": \"2015-08-22T12:20:18Z\",
+                    \"currency\": \"GBP\",
+                    \"description\": \"THE DE BEAUVOIR DELI C LONDON GBR\",
+                    \"merchant\": \"merch_00008zIcpbAKe8shBxXUtl\",
+                    \"id\": \"tx_00008zIcpb1TB4yeIFXMzx\",
+                    \"metadata\": {
+                        \"seen\": \"2015-09-15T10:19:17Z\"
+                    },
+                    \"notes\": \"Salmon sandwich 🍞\",
+                    \"is_load\": false,
+                    \"settled\": \"2015-08-23T12:20:18Z\",
+                    \"category\": \"eating_out\"
+                }
+            }",
+        )
+        .create();
+    let mut core = Core::new().unwrap();
+    let monzo = create_monzo(&core);
+    let work = monzo.transaction("some_id".into(), "some_t_id".into());
+    let ts: TransactionResponse = core.run(work).unwrap();
+    let t = &ts.transaction;
+    assert_that(&t.account_balance).is_equal_to(13013);
+    // No point in testing Transaction deserialization further.
+}
+
+#[test]
 fn unauthorized() {
     let _m = mock(
         "GET",
-        mockito::Matcher::Regex(r"^/balance\?.*$".to_string()),
+        mockito::Matcher::Regex(r"^/balance\?account_id=some_id$".to_string()),
     ).with_status(401)
         .with_header("Content-Type", "application/json")
         .with_body(
@@ -215,7 +252,7 @@ fn unauthorized() {
 fn bad_json() {
     let _m = mock(
         "GET",
-        mockito::Matcher::Regex(r"^/balance\?.*$".to_string()),
+        mockito::Matcher::Regex(r"^/balance\?account_id=some_id$".to_string()),
     ).with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body("{ badjson ")

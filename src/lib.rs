@@ -190,11 +190,18 @@ pub struct Transaction {
     pub decline_reason: Option<String>,
 }
 
-/// Response to the transaction future if successful.
+/// Response to the transactions future if successful.
 #[derive(Debug, Deserialize)]
 pub struct Transactions {
     /// List of transactions.
     pub transactions: Vec<Transaction>,
+}
+
+/// Response to the transaction future if successful.
+#[derive(Debug, Deserialize)]
+pub struct TransactionResponse {
+    /// A single transaction.
+    pub transaction: Transaction,
 }
 
 /// Response to the futures in case of an error.
@@ -340,6 +347,24 @@ impl Client {
 
         self.make_request(uri, |body| {
             let t: Transactions = serde_json::from_slice(&body)?;
+            Ok(t)
+        })
+    }
+
+    /// Returns a list of transactions on the user’s account.
+    pub fn transaction(
+        &self,
+        account_id: AccountId,
+        transaction_id: TransactionId,
+    ) -> Box<Future<Item = TransactionResponse, Error = errors::Error>> {
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("transactions");
+        url.path_segments_mut().unwrap().push(&transaction_id);
+        url.query_pairs_mut().append_pair(ACCOUNT_ID, &account_id);
+        let uri: Uri = url.into_string().parse().unwrap();
+
+        self.make_request(uri, |body| {
+            let t: TransactionResponse = serde_json::from_slice(&body)?;
             Ok(t)
         })
     }
