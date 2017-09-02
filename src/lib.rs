@@ -219,8 +219,6 @@ pub struct Error {
     pub message: Option<String>,
 }
 
-const ACCOUNT_ID: &'static str = "account_id";
-
 /// Errors for this crate using `error_chain`.
 pub mod errors {
     error_chain! {
@@ -247,6 +245,9 @@ pub struct Client {
 
 /// The main interface for this crate.
 impl Client {
+    // The account_id param on requests.
+    const ACCOUNT_ID: &'static str = "account_id";
+
     /// Creates a new Monzo client.
     pub fn new(handle: &Handle, access_token: &str) -> Client {
         Client::new_with_base_url(
@@ -326,7 +327,7 @@ impl Client {
     ) -> Box<Future<Item = Balance, Error = errors::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("balance");
-        url.query_pairs_mut().append_pair(ACCOUNT_ID, &account_id);
+        url.query_pairs_mut().append_pair(Client::ACCOUNT_ID, &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
@@ -342,7 +343,7 @@ impl Client {
     ) -> Box<Future<Item = Transactions, Error = errors::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("transactions");
-        url.query_pairs_mut().append_pair(ACCOUNT_ID, &account_id);
+        url.query_pairs_mut().append_pair(Client::ACCOUNT_ID, &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
@@ -360,7 +361,7 @@ impl Client {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("transactions");
         url.path_segments_mut().unwrap().push(&transaction_id);
-        url.query_pairs_mut().append_pair(ACCOUNT_ID, &account_id);
+        url.query_pairs_mut().append_pair(Client::ACCOUNT_ID, &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
