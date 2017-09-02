@@ -1,5 +1,6 @@
 [package]
 authors = ["Niels Egberts <github@nielsegberts.nl>"]
+categories = ["api-bindings"]
 description = "A library that wraps over the Monzo API in a future aware manner."
 homepage = "https://github.com/nielsegberts/rust-monzo"
 license = "MIT"
@@ -7,7 +8,10 @@ license-file = "LICENSE"
 name = "monzo"
 readme = "README.md"
 repository = "https://github.com/nielsegberts/rust-monzo"
-version = "0.0.1"
+version = "0.0.2"
+
+[badges]
+travis-ci = { repository = "nielsegberts/rust-monzo" }
 
 [dependencies]
 error-chain = "0.10.0"
