@@ -28,7 +28,7 @@ Send me a pull request if you want to help out!
 
 ## Tests
 
-Tests use [mockito](https://crates.io/crates/mockito) so need to be ran one at the time:
+Tests use [mockito](https://crates.io/crates/mockito) so they need to be ran one at the time:
 
 ```
 cargo test -- --test-threads=1
