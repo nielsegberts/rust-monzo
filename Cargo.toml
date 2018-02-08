@@ -3,7 +3,6 @@ authors = ["Niels Egberts <github@nielsegberts.nl>"]
 categories = ["api-bindings"]
 description = "A library that wraps over the Monzo API in a future aware manner."
 homepage = "https://github.com/nielsegberts/rust-monzo"
-license = "MIT"
 license-file = "LICENSE"
 name = "monzo"
 readme = "README.md"
@@ -15,13 +14,13 @@ repository = "nielsegberts/rust-monzo"
 
 [dependencies]
 error-chain = "0.11.0"
-futures = "0.1.17"
-hyper = "0.11.7"
+futures = "0.1.18"
+hyper = "0.11.18"
 hyper-tls = "0.1.2"
-serde = "1.0.23"
-serde_derive = "1.0.23"
-serde_json = "1.0.7"
-tokio-core = "0.1.10"
+serde = "1.0.27"
+serde_derive = "1.0.27"
+serde_json = "1.0.9"
+tokio-core = "0.1.12"
 url = "1.6.0"
 
 [dependencies.chrono]
