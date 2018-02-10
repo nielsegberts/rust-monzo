@@ -78,7 +78,7 @@ pub struct Account {
 /// Response to the list accounts future.
 #[derive(Debug, Deserialize)]
 pub struct Accounts {
-    /// List of accounts owned by the currenty authorized user.
+    /// List of accounts owned by the currently authorized user.
     pub accounts: Vec<Account>,
 }
 
@@ -202,6 +202,35 @@ pub struct Transactions {
 pub struct TransactionResponse {
     /// A single transaction.
     pub transaction: Transaction,
+}
+
+/// Describes a pot.
+#[derive(Debug, Deserialize)]
+pub struct Pot {
+    /// Id of the pot
+    pub id: String,
+    /// User given name.
+    pub name: String,
+    /// Chosen style.
+    pub style: String,
+    /// The amount of money in the pot in minor units of currency. For example pennies in the case
+    /// of GBP.
+    pub balance: i64,
+    /// The ISO 4217 currency code.
+    pub currency: Currency,
+    /// The timestamp in when the pot was created.
+    pub created: DateTime<Utc>,
+    /// The timestamp in when the pot was last updated.
+    pub updated: DateTime<Utc>,
+    /// If the pot has been deleted.
+    pub deleted: bool,
+}
+
+/// Response to the pots future if successful.
+#[derive(Debug, Deserialize)]
+pub struct PotsResponse {
+    /// List of pots for the currently authorised user.
+    pub pots: Vec<Pot>,
 }
 
 /// Response to the futures in case of an error.
@@ -366,6 +395,19 @@ impl Client {
 
         self.make_request(uri, |body| {
             let t: TransactionResponse = serde_json::from_slice(&body)?;
+            Ok(t)
+        })
+    }
+
+    /// Returns a list of pots in the user’s account.
+    pub fn pots(&self) -> Box<Future<Item = PotsResponse, Error = errors::Error>> {
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("pots");
+        url.path_segments_mut().unwrap().push("listV1");
+        let uri: Uri = url.into_string().parse().unwrap();
+
+        self.make_request(uri, |body| {
+            let t: PotsResponse = serde_json::from_slice(&body)?;
             Ok(t)
         })
     }

@@ -6,7 +6,7 @@ extern crate spectral;
 extern crate hyper;
 
 use mockito::mock;
-use monzo::{Accounts, Client, Balance, Transactions, TransactionResponse};
+use monzo::{Accounts, Client, Balance, PotsResponse, Transactions, TransactionResponse};
 use spectral::prelude::*;
 use tokio_core::reactor::Core;
 use url::Url;
@@ -203,6 +203,43 @@ fn transaction() {
     let t = &ts.transaction;
     assert_that(&t.account_balance).is_equal_to(13013);
     // No point in testing Transaction deserialization further.
+}
+
+#[test]
+fn pots() {
+    let _m = mock("GET", mockito::Matcher::Regex(r"^/pots/listV1".to_string()))
+        .with_status(200)
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            "{
+                \"pots\": [
+                    {
+                        \"id\": \"pot_0000778xxfgh4iu8z83nWb\",
+                        \"name\": \"Savings\",
+                        \"style\": \"beach_ball\",
+                        \"balance\": 133700,
+                        \"currency\": \"GBP\",
+                        \"created\": \"2017-11-09T12:30:53.695Z\",
+                        \"updated\": \"2017-11-09T13:30:53.695Z\",
+                        \"deleted\": false
+                    }
+                ]
+            }",
+        )
+        .create();
+    let mut core = Core::new().unwrap();
+    let monzo = create_monzo(&core);
+    let work = monzo.pots();
+    let pots: PotsResponse = core.run(work).unwrap();
+    let pot = &pots.pots[0];
+    assert_that(&pot.id.as_str()).is_equal_to("pot_0000778xxfgh4iu8z83nWb");
+    assert_that(&pot.name.as_str()).is_equal_to("Savings");
+    assert_that(&pot.style.as_str()).is_equal_to("beach_ball");
+    assert_that(&pot.balance).is_equal_to(133700);
+    assert_that(&pot.currency.as_str()).is_equal_to("GBP");
+    assert_that(&pot.created.to_rfc3339()).is_equal_to("2017-11-09T12:30:53.695+00:00".to_string());
+    assert_that(&pot.updated.to_rfc3339()).is_equal_to("2017-11-09T13:30:53.695+00:00".to_string());
+    assert_that(&pot.deleted).is_equal_to(false);
 }
 
 #[test]
