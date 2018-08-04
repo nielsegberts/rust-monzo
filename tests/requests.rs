@@ -11,9 +11,8 @@ use spectral::prelude::*;
 use tokio_core::reactor::Core;
 use url::Url;
 
-fn create_monzo(core: &Core) -> monzo::Client {
+fn create_monzo() -> monzo::Client {
     Client::new_with_base_url(
-        &core.handle(),
         "token",
         Url::parse(mockito::SERVER_URL).unwrap(),
     )
@@ -37,7 +36,7 @@ fn accounts() {
         )
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.accounts();
     let a: Accounts = core.run(work).unwrap();
     assert_that(&a.accounts.len()).is_equal_to(1);
@@ -63,7 +62,7 @@ fn balance() {
         )
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.balance("some_id".into());
     let b: Balance = core.run(work).unwrap();
     assert_that(&b.balance).is_equal_to(5000);
@@ -102,7 +101,7 @@ fn transactions() {
         )
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.transactions("some_id".into());
     let ts: Transactions = core.run(work).unwrap();
     assert_that(&ts.transactions.len()).is_equal_to(1);
@@ -157,7 +156,7 @@ fn transactions_declined_no_merchant_no_settled() {
         )
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.transactions("some_id".into());
     let t = &core.run(work).unwrap().transactions[0];
     assert_that(&t.decline_reason).is_some().is_equal_to(
@@ -197,7 +196,7 @@ fn transaction() {
         )
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.transaction("some_id".into(), "some_t_id".into());
     let ts: TransactionResponse = core.run(work).unwrap();
     let t = &ts.transaction;
@@ -228,7 +227,7 @@ fn pots() {
         )
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.pots();
     let pots: PotsResponse = core.run(work).unwrap();
     let pot = &pots.pots[0];
@@ -259,13 +258,13 @@ fn unauthorized() {
         )
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.balance("some_id".into());
     let response_error = core.run(work).unwrap_err();
 
     match response_error {
         monzo::errors::Error(monzo::errors::ErrorKind::BadResponse(statuscode, e), _) => {
-            assert_that(&statuscode).is_equal_to(hyper::StatusCode::Unauthorized);
+            assert_that(&statuscode).is_equal_to(hyper::StatusCode::UNAUTHORIZED);
             assert_that(&e.code).is_some().is_equal_to(
                 "unauthorized.bad_access_token"
                     .to_string(),
@@ -295,7 +294,7 @@ fn bad_json() {
         .with_body("{ badjson ")
         .create();
     let mut core = Core::new().unwrap();
-    let monzo = create_monzo(&core);
+    let monzo = create_monzo();
     let work = monzo.balance("some_id".into());
     let response_error = core.run(work).unwrap_err();
 

@@ -9,7 +9,7 @@
 //! extern crate tokio_core;
 //!
 //! let mut core = tokio_core::reactor::Core::new().unwrap();
-//! let monzo = monzo::Client::new(&core.handle(), "<access_token>");
+//! let monzo = monzo::Client::new("<access_token>");
 //! let work = monzo.balance("<account_id>".into());
 //! let response = core.run(work).unwrap();
 //! println!("Balance: {} {}", response.balance, response.currency);
@@ -32,19 +32,18 @@ extern crate error_chain;
 extern crate chrono;
 extern crate futures;
 extern crate hyper;
-extern crate serde;
 extern crate hyper_tls;
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-extern crate tokio_core;
 extern crate url;
 
-use chrono::DateTime;
 use chrono::offset::Utc;
+use chrono::DateTime;
 use futures::{Future, Stream};
-use hyper::{Body, Method, Request, Uri, Chunk, StatusCode};
-use hyper::header::{Authorization, Bearer};
+use hyper::header::AUTHORIZATION;
+use hyper::{Body, Chunk, Request, StatusCode, Uri};
 use serde::de;
 use serde::de::Deserialize;
 use serde::de::Deserializer;
@@ -52,7 +51,6 @@ use serde::de::Visitor;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::string::String;
-use tokio_core::reactor::Handle;
 use url::Url;
 
 /// Identifier for an account.
@@ -254,7 +252,7 @@ pub mod errors {
         errors {
             #[doc = "When the Monzo API returns an error response code with more detailed \
             information."]
-            BadResponse(statuscode: ::hyper::StatusCode, error: ::Error)
+            BadResponse(statuscode: ::StatusCode, error: ::Error)
         }
         foreign_links {
             BadJsonResponse(::serde_json::Error)
@@ -278,31 +276,30 @@ impl Client {
     const ACCOUNT_ID: &'static str = "account_id";
 
     /// Creates a new Monzo client.
-    pub fn new(handle: &Handle, access_token: &str) -> Client {
-        Client::new_with_base_url(
-            handle,
-            access_token,
-            "https://api.monzo.com".parse().unwrap(),
-        )
+    pub fn new(access_token: &str) -> Client {
+        Client::new_with_base_url(access_token, "https://api.monzo.com".parse().unwrap())
     }
 
     /// Creates a new Monzo client with another base url. Useful for tests.
-    pub fn new_with_base_url(handle: &Handle, access_token: &str, base_url: Url) -> Client {
+    pub fn new_with_base_url(access_token: &str, base_url: Url) -> Client {
         Client {
-            client: ::hyper::Client::configure()
-                .connector(::hyper_tls::HttpsConnector::new(4, handle).unwrap())
-                .build(handle),
+            client: ::hyper::Client::builder()
+                .build::<_, ::hyper::Body>(::hyper_tls::HttpsConnector::new(1).unwrap()),
             access_token: access_token.into(),
             base_url: base_url,
         }
     }
 
     fn create_request(&self, uri: Uri) -> Request<Body> {
-        let mut req: Request<Body> = Request::new(Method::Get, uri);
-        req.headers_mut().set(Authorization(
-            Bearer { token: self.access_token.clone() },
-        ));
-        req
+        Request::builder()
+            .method("GET")
+            .uri(uri)
+            .header(
+                AUTHORIZATION,
+                format!("Bearer {}", self.access_token.as_str()).as_str(),
+            )
+            .body(Body::empty())
+            .unwrap()
     }
 
     fn make_request<T: 'static, F: 'static>(
@@ -314,22 +311,19 @@ impl Client {
         F: Fn(Chunk) -> Result<T, errors::Error>,
     {
         let request = self.create_request(uri);
-        let response: hyper::client::FutureResponse = self.client.request(request);
+        let response: hyper::client::ResponseFuture = self.client.request(request);
         let future = response
             .map_err(|err: hyper::Error| -> errors::Error { err.into() })
             .and_then(|res| {
                 let status = res.status();
-                res.body()
+                res.into_body()
                     .concat2()
                     .map_err(|err: hyper::Error| err.into())
                     .and_then(move |body: Chunk| {
-                        match status {
-                            StatusCode::Ok => {}
-                            _ => {
-                                let error: Error = serde_json::from_slice(&body)?;
-                                return Err(errors::ErrorKind::BadResponse(status, error).into());
-                            }
-                        };
+                        if !status.is_success() {
+                            let error: Error = serde_json::from_slice(&body)?;
+                            return Err(errors::ErrorKind::BadResponse(status, error).into());
+                        }
                         response_handler(body)
                     })
             });
