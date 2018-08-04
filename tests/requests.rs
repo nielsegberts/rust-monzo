@@ -1,21 +1,18 @@
-extern crate monzo;
-extern crate tokio_core;
-extern crate mockito;
-extern crate url;
-extern crate spectral;
 extern crate hyper;
+extern crate mockito;
+extern crate monzo;
+extern crate spectral;
+extern crate tokio_core;
+extern crate url;
 
 use mockito::mock;
-use monzo::{Accounts, Client, Balance, PotsResponse, Transactions, TransactionResponse};
+use monzo::{Accounts, Balance, Client, PotsResponse, TransactionResponse, Transactions};
 use spectral::prelude::*;
 use tokio_core::reactor::Core;
 use url::Url;
 
 fn create_monzo() -> monzo::Client {
-    Client::new_with_base_url(
-        "token",
-        Url::parse(mockito::SERVER_URL).unwrap(),
-    )
+    Client::new_with_base_url("token", Url::parse(mockito::SERVER_URL).unwrap())
 }
 
 #[test]
@@ -111,17 +108,15 @@ fn transactions() {
     assert_that(&t.created.to_rfc3339().as_str()).is_equal_to("2015-08-22T12:20:18+00:00");
     assert_that(&t.currency.as_str()).is_equal_to("GBP");
     assert_that(&t.description.as_str()).is_equal_to("THE DE BEAUVOIR DELI C LONDON GBR");
-    assert_that(&t.merchant).is_some().is_equal_to(
-        "merch_00008zIcpbAKe8shBxXUtl"
-            .to_string(),
-    );
+    assert_that(&t.merchant)
+        .is_some()
+        .is_equal_to("merch_00008zIcpbAKe8shBxXUtl".to_string());
     assert_that(&t.id.as_str()).is_equal_to("tx_00008zIcpb1TB4yeIFXMzx");
     assert_that(&t.metadata.len()).is_equal_to(1);
     assert_that(&t.notes.as_str()).is_equal_to("Salmon sandwich 🍞");
     assert_that(&t.is_load).is_equal_to(false);
-    assert_that(&t.settled.unwrap().to_rfc3339()).is_equal_to(
-        "2015-08-23T12:20:18+00:00".to_string(),
-    );
+    assert_that(&t.settled.unwrap().to_rfc3339())
+        .is_equal_to("2015-08-23T12:20:18+00:00".to_string());
     assert_that(&t.category.as_str()).is_equal_to("eating_out");
     assert_that(&t.decline_reason).is_none();
 }
@@ -159,10 +154,9 @@ fn transactions_declined_no_merchant_no_settled() {
     let monzo = create_monzo();
     let work = monzo.transactions("some_id".into());
     let t = &core.run(work).unwrap().transactions[0];
-    assert_that(&t.decline_reason).is_some().is_equal_to(
-        "CARD_INACTIVE"
-            .to_string(),
-    );
+    assert_that(&t.decline_reason)
+        .is_some()
+        .is_equal_to("CARD_INACTIVE".to_string());
     assert_that(&t.merchant).is_none();
     assert_that(&t.settled).is_none();
 }
@@ -265,20 +259,18 @@ fn unauthorized() {
     match response_error {
         monzo::errors::Error(monzo::errors::ErrorKind::BadResponse(statuscode, e), _) => {
             assert_that(&statuscode).is_equal_to(hyper::StatusCode::UNAUTHORIZED);
-            assert_that(&e.code).is_some().is_equal_to(
-                "unauthorized.bad_access_token"
-                    .to_string(),
-            );
-            assert_that(&e.error).is_some().is_equal_to(
-                "invalid_token".to_string(),
-            );
-            assert_that(&e.error_description).is_some().is_equal_to(
-                "expired1"
-                    .to_string(),
-            );
-            assert_that(&e.message).is_some().is_equal_to(
-                "expired2".to_string(),
-            );
+            assert_that(&e.code)
+                .is_some()
+                .is_equal_to("unauthorized.bad_access_token".to_string());
+            assert_that(&e.error)
+                .is_some()
+                .is_equal_to("invalid_token".to_string());
+            assert_that(&e.error_description)
+                .is_some()
+                .is_equal_to("expired1".to_string());
+            assert_that(&e.message)
+                .is_some()
+                .is_equal_to("expired2".to_string());
         }
         _ => panic!("Incorrect error type"),
     }

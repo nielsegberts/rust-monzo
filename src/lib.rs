@@ -17,15 +17,11 @@
 //! ```
 
 #![crate_name = "monzo"]
-#![deny(missing_docs,
-        missing_debug_implementations,
-        missing_copy_implementations,
-        trivial_casts,
-        trivial_numeric_casts,
-        unsafe_code,
-        unused_extern_crates,
-        unused_import_braces,
-        unused_qualifications)]
+#![deny(
+    missing_docs, missing_debug_implementations, missing_copy_implementations, trivial_casts,
+    trivial_numeric_casts, unsafe_code, unused_extern_crates, unused_import_braces,
+    unused_qualifications
+)]
 
 #[macro_use]
 extern crate error_chain;
@@ -350,7 +346,8 @@ impl Client {
     ) -> Box<Future<Item = Balance, Error = errors::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("balance");
-        url.query_pairs_mut().append_pair(Client::ACCOUNT_ID, &account_id);
+        url.query_pairs_mut()
+            .append_pair(Client::ACCOUNT_ID, &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
@@ -366,7 +363,8 @@ impl Client {
     ) -> Box<Future<Item = Transactions, Error = errors::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("transactions");
-        url.query_pairs_mut().append_pair(Client::ACCOUNT_ID, &account_id);
+        url.query_pairs_mut()
+            .append_pair(Client::ACCOUNT_ID, &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
@@ -384,7 +382,8 @@ impl Client {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("transactions");
         url.path_segments_mut().unwrap().push(&transaction_id);
-        url.query_pairs_mut().append_pair(Client::ACCOUNT_ID, &account_id);
+        url.query_pairs_mut()
+            .append_pair(Client::ACCOUNT_ID, &account_id);
         let uri: Uri = url.into_string().parse().unwrap();
 
         self.make_request(uri, |body| {
